@@ -1,0 +1,28 @@
+name: MY-EFC
+on:
+  workflow_dispatch:
+  watch:
+    types: [started]
+  schedule:
+    - cron: "0 18 * * 4"
+
+jobs:
+  EFC:
+    name: Claim Freebie
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v1
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Claim
+      env:
+        EG_AUTH_JSON: ${{ secrets.EG_AUTH_JSON }}
+      run: |
+        echo "$EG_AUTH_JSON" > $GITHUB_WORKSPACE/app/data/device_auths.json
+        npm start
