@@ -24,5 +24,6 @@ jobs:
       env:
         EG_AUTH_JSON: ${{ secrets.EG_AUTH_JSON }}
       run: |
+        echo "$GITHUB_WORKSPACE"
         echo "$EG_AUTH_JSON" > $GITHUB_WORKSPACE/app/data/device_auths.json
         npm start
