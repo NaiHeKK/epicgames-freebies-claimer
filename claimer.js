@@ -7,6 +7,7 @@ const { writeFile } = require("fs");
 const Auths = require(`${__dirname}/data/device_auths.json`);
 const CheckUpdate = require("check-update-github");
 const Config = require(`${__dirname}/data/config.json`);
+const Fork = require("child_process");
 const History = require(`${__dirname}/data/history.json`);
 const Logger = require("tracer").console(`${__dirname}/logger.js`);
 const Package = require("./package.json");
@@ -28,6 +29,35 @@ function isUpToDate() {
     });
 }
 
+function notify(appriseUrl, newlyClaimedPromos) {
+    if (!appriseUrl || newlyClaimedPromos.length === 0) {
+        return;
+    }
+
+    let notification = newlyClaimedPromos.map((promo) => promo.title).join(", ");
+    try {
+        let s = Fork.spawnSync("apprise", [
+            "-vv",
+            "-t",
+            "New freebies claimed on Epic Games Store",
+            "-b",
+            notification,
+            appriseUrl,
+        ]);
+
+        let output = s.stdout ? s.stdout.toString() : "ERROR: maybe apprise not found";
+        if (output && output.includes("ERROR")) {
+            Logger.error(`Failed to send push notification (${output})`);
+        } else if (output) {
+            Logger.info("Push notification sent");
+        } else {
+            Logger.warn("No output from apprise");
+        }
+    } catch (err) {
+        Logger.error(`Failed to send push notification (${err})`);
+    }
+}
+
 function write(path, data) {
     // eslint-disable-next-line no-extra-parens
     return new Promise((res, rej) => writeFile(path, data, (err) => (err ? rej(err) : res(true))));
@@ -38,17 +68,7 @@ function sleep(delay) {
 }
 
 (async() => {
-    let { options, delay, loop, pushbulletApiKey } = Config;
-
-    let pusher = null;
-    if (pushbulletApiKey) {
-        try {
-            const PushBullet = require("pushbullet");
-            pusher = new PushBullet(pushbulletApiKey);
-        } catch (err) {
-            Logger.error("Package 'pushbullet' is not installed, but 'pushbulletApiKey' was set in config");
-        }
-    }
+    let { options, delay, loop, appriseUrl } = Config;
 
     do {
         if (!await isUpToDate()) {
@@ -114,15 +134,7 @@ function sleep(delay) {
             }
 
             History[email] = claimedPromos;
-            if (pusher && newlyClaimedPromos.length > 0) {
-                let notification = newlyClaimedPromos.map((promo) => promo.title).join(", ");
-                try {
-                    await pusher.note({}, "New freebies claimed on Epic Games Store", notification);
-                    Logger.info("Push notification sent");
-                } catch (err) {
-                    Logger.error(`Failed to send push notification (${err})`);
-                }
-            }
+            notify(appriseUrl, newlyClaimedPromos);
 
             await client.logout();
             Logger.info(`Logged ${client.account.name} out of Epic Games`);
