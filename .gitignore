@@ -17,3 +17,6 @@ data/*
 !.vscode/extensions.json
 *.code-workspace
 .idea
+.github
+# for python virtual env to test apprise
+venv
